@@ -62,8 +62,13 @@ const tools: Tool[] = [
         },
         limit: {
           type: 'number',
-          description: 'Maximum number of results to return (default: 20)',
+          description: 'Maximum number of results to return (default: 20). eBay paginates automatically to fetch more than 200 (eBay caps offset + limit at 10,000).',
           default: 20
+        },
+        offset: {
+          type: 'number',
+          description: 'Starting result offset for pagination (default: 0). eBay only; other marketplaces ignore it.',
+          default: 0
         },
         showSold: {
           type: 'boolean',
@@ -175,6 +180,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         maxPrice?: number;
         minPrice?: number;
         limit?: number;
+        offset?: number;
         showSold?: boolean;
         includeImages?: boolean;
         sort?: string;
@@ -192,6 +198,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         maxPrice: params.maxPrice,
         minPrice: params.minPrice,
         limit: params.limit || 20,
+        offset: params.offset || 0,
         showSold: params.showSold || false,
         sort: params.sort as SearchParams['sort'],
         condition: params.condition as SearchParams['condition'],

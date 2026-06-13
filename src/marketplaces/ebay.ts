@@ -13,6 +13,11 @@ const TOKEN_URL = 'https://api.ebay.com/identity/v1/oauth2/token';
 const BROWSE_API_URL = 'https://api.ebay.com/buy/browse/v1';
 const OAUTH_SCOPE = 'https://api.ebay.com/oauth/api_scope';
 
+// eBay Browse API pagination limits: max 200 items per request, and
+// offset + limit may not exceed 10,000.
+const EBAY_PAGE_SIZE = 200;
+const EBAY_MAX_OFFSET = 10_000;
+
 const CONDITION_MAP: Record<string, string> = {
   new: 'NEW',
   like_new: 'LIKE_NEW',
@@ -50,7 +55,7 @@ export class EbayMarketplace extends BaseMarketplace {
   }
 
   async search(params: SearchParams): Promise<SearchResult> {
-    const { query, maxPrice, minPrice, condition, limit = 20 } = params;
+    const { query, maxPrice, minPrice, condition, limit = 20, offset = 0 } = params;
 
     if (!this.clientId || !this.clientSecret) {
       return this.createError(
@@ -61,13 +66,7 @@ export class EbayMarketplace extends BaseMarketplace {
     try {
       const token = await this.getToken();
 
-      // Build query parameters
-      const searchParams = new URLSearchParams({
-        q: query,
-        limit: String(Math.min(limit, 200)),
-      });
-
-      // Build filters
+      // Build filters once; reused across every page request
       const filters: string[] = [];
       if (minPrice != null || maxPrice != null) {
         const min = minPrice ?? '';
@@ -80,34 +79,64 @@ export class EbayMarketplace extends BaseMarketplace {
           filters.push(`conditions:{${ebayCondition}}`);
         }
       }
-      if (filters.length > 0) {
-        searchParams.set('filter', filters.join(','));
-      }
+      const filterParam = filters.length > 0 ? filters.join(',') : undefined;
 
-      const response = await fetch(
-        `${BROWSE_API_URL}/item_summary/search?${searchParams.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-          },
+      // eBay's Browse API returns at most 200 items per request and caps
+      // offset + limit at 10,000, so fetch successive pages until we've
+      // collected `limit` listings (or run out of results).
+      const target = Math.max(0, limit);
+      const listings: Listing[] = [];
+      let total = 0;
+      let currentOffset = Math.max(0, offset);
+
+      while (listings.length < target && currentOffset < EBAY_MAX_OFFSET) {
+        const remaining = target - listings.length;
+        const pageLimit = Math.min(remaining, EBAY_PAGE_SIZE, EBAY_MAX_OFFSET - currentOffset);
+        if (pageLimit <= 0) break;
+
+        const searchParams = new URLSearchParams({
+          q: query,
+          limit: String(pageLimit),
+          offset: String(currentOffset),
+        });
+        if (filterParam) {
+          searchParams.set('filter', filterParam);
         }
-      );
 
-      if (!response.ok) {
-        const errBody = await response.text();
-        return this.createError(`eBay API returned ${response.status}: ${errBody}`);
+        const response = await fetch(
+          `${BROWSE_API_URL}/item_summary/search?${searchParams.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          // If earlier pages succeeded, return what we have rather than failing.
+          if (listings.length > 0) break;
+          const errBody = await response.text();
+          return this.createError(`eBay API returned ${response.status}: ${errBody}`);
+        }
+
+        const data = (await response.json()) as any;
+        total = data.total ?? total;
+        const items = data.itemSummaries ?? [];
+        if (items.length === 0) break; // no more results available
+
+        this.parseListings(items, target, listings);
+        currentOffset += items.length;
+
+        // Reached the end of the result set reported by eBay.
+        if (total && currentOffset >= total) break;
       }
-
-      const data = (await response.json()) as any;
-      const items = data.itemSummaries ?? [];
-      const listings = this.parseListings(items, limit);
 
       return {
         marketplace: this.name,
         success: true,
         listings,
-        totalFound: data.total ?? listings.length,
+        totalFound: total || listings.length,
         ...(listings.length === 0 && {
           note: 'No eBay listings found for this query. eBay searches nationally (not location-based). Try broadening your search terms.',
         }),
@@ -172,11 +201,9 @@ export class EbayMarketplace extends BaseMarketplace {
 
   // ── Private helpers ──────────────────────────────────────────────
 
-  private parseListings(items: any[], limit: number): Listing[] {
-    const listings: Listing[] = [];
-
+  private parseListings(items: any[], target: number, listings: Listing[]): void {
     for (const item of items) {
-      if (listings.length >= limit) break;
+      if (listings.length >= target) break;
 
       try {
         const priceStr = item.price
@@ -211,8 +238,6 @@ export class EbayMarketplace extends BaseMarketplace {
         continue;
       }
     }
-
-    return listings;
   }
 
   private async getToken(): Promise<string> {
