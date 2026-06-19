@@ -515,6 +515,12 @@ function formatListingDetails(details: ListingDetails): string {
     lines.push(`🕐 Publié : ${details.postedAt}`);
   }
 
+  if (details.isCommercial) {
+    lines.push(`🏪 Type : Commercial (En stock)`);
+  } else if (details.isCommercial === false) {
+    lines.push(`👤 Type : Particulier`);
+  }
+
   if (details.images.length > 0) {
     lines.push('');
     lines.push(`🖼️ Photos (${details.images.length}):`);

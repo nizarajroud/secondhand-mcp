@@ -162,6 +162,8 @@ export class FacebookMarketplace extends BaseMarketplace {
     }
 
     const creationTime = infoTarget?.creation_time;
+    const inventoryType = infoTarget?.listing_inventory_type;
+    const isCommercial = inventoryType === 'EVERGREEN' || (infoTarget?.inventory_count != null && infoTarget.inventory_count !== 0);
 
     return {
       id: listingId,
@@ -174,6 +176,7 @@ export class FacebookMarketplace extends BaseMarketplace {
       isShippingOffered: infoTarget?.is_shipping_offered ?? undefined,
       postedAt: creationTime ? new Date(creationTime * 1000).toISOString() : undefined,
       postedAtRelative: creationTime ? this.timeAgo(creationTime) : undefined,
+      isCommercial,
       url: `https://www.facebook.com/marketplace/item/${listingId}`,
     };
   }

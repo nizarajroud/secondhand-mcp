@@ -59,6 +59,7 @@ export interface ListingDetails {
   isShippingOffered?: boolean;
   postedAt?: string;
   postedAtRelative?: string;
+  isCommercial?: boolean;
   url: string;
 }
 
