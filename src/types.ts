@@ -14,6 +14,8 @@ export interface Listing {
   images?: string[];
   seller?: string;
   condition?: string;
+  postedAt?: string;
+  postedAtRelative?: string;
   marketplace: string;
   scrapedAt: string;
 }
@@ -34,6 +36,7 @@ export interface SearchParams {
   department?: string;
   sizes?: string[];
   colors?: string[];
+  daysSinceListed?: number; // Facebook: filter by listing age (1, 7, 30)
 }
 
 export interface SearchResult {
@@ -54,6 +57,8 @@ export interface ListingDetails {
   seller?: string;
   deliveryTypes?: string[];
   isShippingOffered?: boolean;
+  postedAt?: string;
+  postedAtRelative?: string;
   url: string;
 }
 

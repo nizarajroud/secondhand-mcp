@@ -43,7 +43,7 @@ export class FacebookMarketplace extends BaseMarketplace {
   private locationCache: Map<string, LocationCoordinates> = new Map();
 
   async search(params: SearchParams): Promise<SearchResult> {
-    const { query, location = 'san francisco', maxPrice, minPrice, limit = 24 } = params;
+    const { query, location = 'san francisco', maxPrice, minPrice, limit = 24, radius, sort, daysSinceListed } = params;
 
     try {
       // Step 1: Resolve location to coordinates
@@ -55,6 +55,9 @@ export class FacebookMarketplace extends BaseMarketplace {
       }
 
       // Step 2: Search listings
+      // Convert radius from miles to km (default 20km if not specified)
+      const radiusKm = radius ? Math.round(radius * 1.60934) : 20;
+
       const variables = JSON.stringify({
         count: Math.min(limit, 24),
         params: {
@@ -67,15 +70,16 @@ export class FacebookMarketplace extends BaseMarketplace {
             commerce_enable_shipping: true,
             commerce_search_and_rp_available: true,
             commerce_search_and_rp_condition: null,
-            commerce_search_and_rp_ctime_days: null,
+            commerce_search_and_rp_ctime_days: daysSinceListed ?? null,
             filter_location_latitude: coords.latitude,
             filter_location_longitude: coords.longitude,
             filter_price_lower_bound: minPrice ?? 0,
             filter_price_upper_bound: maxPrice ?? MAX_PRICE_SENTINEL,
-            filter_radius_km: 16,
+            filter_radius_km: radiusKm,
           },
           custom_request_params: {
             surface: 'SEARCH',
+            ...(sort === 'newest' ? { search_sort_by: 'CREATION_TIME_DESCEND' } : {}),
           },
         },
       });
@@ -154,6 +158,8 @@ export class FacebookMarketplace extends BaseMarketplace {
       }
     }
 
+    const creationTime = infoTarget?.creation_time;
+
     return {
       id: listingId,
       description: infoTarget?.redacted_description?.text ?? undefined,
@@ -163,6 +169,8 @@ export class FacebookMarketplace extends BaseMarketplace {
       seller: infoTarget?.marketplace_listing_seller?.name ?? undefined,
       deliveryTypes: infoTarget?.delivery_types ?? undefined,
       isShippingOffered: infoTarget?.is_shipping_offered ?? undefined,
+      postedAt: creationTime ? new Date(creationTime * 1000).toISOString() : undefined,
+      postedAtRelative: creationTime ? this.timeAgo(creationTime) : undefined,
       url: `https://www.facebook.com/marketplace/item/${listingId}`,
     };
   }
@@ -245,6 +253,9 @@ export class FacebookMarketplace extends BaseMarketplace {
 
         const imageUri = listing.primary_listing_photo?.image?.uri;
 
+        const postedAtISO = listing.creation_time ? new Date(listing.creation_time * 1000).toISOString() : undefined;
+        const postedAtRelative = listing.creation_time ? this.timeAgo(listing.creation_time) : undefined;
+
         listings.push({
           id: listing.id,
           title: listing.marketplace_listing_title || 'Untitled Listing',
@@ -255,6 +266,8 @@ export class FacebookMarketplace extends BaseMarketplace {
           url: `https://www.facebook.com/marketplace/item/${listing.id}`,
           images: imageUri ? [imageUri] : undefined,
           seller: listing.marketplace_listing_seller?.name,
+          postedAt: postedAtISO,
+          postedAtRelative,
           marketplace: this.name,
           scrapedAt: new Date().toISOString(),
         });
@@ -265,6 +278,14 @@ export class FacebookMarketplace extends BaseMarketplace {
     }
 
     return listings;
+  }
+
+  private timeAgo(unixSeconds: number): string {
+    const diff = Math.floor(Date.now() / 1000) - unixSeconds;
+    if (diff < 60) return `il y a ${diff} secondes`;
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)} minutes`;
+    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} heures`;
+    return `il y a ${Math.floor(diff / 86400)} jours`;
   }
 
   private async fetchGraphQL(docId: string, variables: string): Promise<any> {

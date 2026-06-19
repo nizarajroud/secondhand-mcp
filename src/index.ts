@@ -82,7 +82,7 @@ const tools: Tool[] = [
         },
         sort: {
           type: 'string',
-          description: 'Sort order (Depop, Poshmark). Options: relevance, newest, most_popular, price_low_to_high, price_high_to_low',
+          description: 'Sort order. Facebook: relevance, newest. Depop/Poshmark: relevance, newest, most_popular, price_low_to_high, price_high_to_low',
           default: 'relevance'
         },
         condition: {
@@ -110,6 +110,10 @@ const tools: Tool[] = [
           type: 'array',
           items: { type: 'string' },
           description: 'Filter by colors (Depop, Poshmark). Options: black, white, red, blue, green, yellow, orange, pink, purple, brown, grey, cream, multi, silver, gold',
+        },
+        daysSinceListed: {
+          type: 'number',
+          description: 'Facebook only: filter by listing age in days (1, 7, or 30). E.g. 7 = last 7 days only.',
         }
       },
       required: ['query']
@@ -190,6 +194,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         department?: string;
         sizes?: string[];
         colors?: string[];
+        daysSinceListed?: number;
+        radius?: number;
       };
 
       const searchParams: SearchParams = {
@@ -207,6 +213,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         department: params.department,
         sizes: params.sizes,
         colors: params.colors,
+        daysSinceListed: params.daysSinceListed,
+        radius: params.radius,
       };
 
       const marketplaceName = params.marketplace || 'facebook';
@@ -499,6 +507,12 @@ function formatListingDetails(details: ListingDetails): string {
 
   if (details.isShippingOffered) {
     lines.push(`📦 Shipping available`);
+  }
+
+  if (details.postedAtRelative) {
+    lines.push(`🕐 Publié : ${details.postedAtRelative}`);
+  } else if (details.postedAt) {
+    lines.push(`🕐 Publié : ${details.postedAt}`);
   }
 
   if (details.images.length > 0) {
