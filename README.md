@@ -42,6 +42,10 @@ npm run build
 
 ## Prompt Samples
 
+### Full-featured search (recommended starting point)
+
+> "Cherche 10 articles à Longueuil entre 5$ et 200$, triés par plus récent, publiés dans les 7 derniers jours, dans un rayon de 15 miles. Pour chaque résultat, récupère les détails. Exclus les articles gratuits (0$) et les vendeurs commerciaux. Affiche uniquement les annonces de particuliers avec : titre, prix, localisation, et depuis quand c'est publié."
+
 ### Browse all recent listings in a location
 
 > "Montre-moi tous les articles publiés aujourd'hui à Longueuil sous 100$."
