@@ -1,13 +1,62 @@
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jlsookiki-secondhand-mcp-badge.png)](https://mseep.ai/app/jlsookiki-secondhand-mcp)
 
-# Secondhand MCP
+# Secondhand MCP (Fork — Enhanced)
+
+> Fork of [jlsookiki/secondhand-mcp](https://github.com/jlsookiki/secondhand-mcp) with enhanced Facebook Marketplace features.
 
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI assistants search secondhand marketplaces. Search Facebook Marketplace, eBay, Depop, and Poshmark for used and secondhand items — filter by price, category, condition, size, and color, then get full listing details with photos, descriptions, and seller info.
 
-Works with Claude Desktop, Claude Code, Cursor, and any MCP-compatible client.
+## Enhancements (this fork)
 
-> [!TIP]
-> **Want to skip the setup?** Try [Secondhand MCP Cloud](https://secondhandmcp.com) — the hosted version that connects to Claude.ai and ChatGPT in 30 seconds. No install or Chrome required. Free tier included.
+| Feature | Description |
+|---------|-------------|
+| **Publication date** | `postedAt` (ISO) + `postedAtRelative` ("il y a 18 minutes") in listing details |
+| **Search radius** | Configurable `radius` in miles (converted to km internally) |
+| **Days since listed** | `daysSinceListed` filter (1, 7, or 30 days) for Facebook |
+| **Sort by newest** | `sort: "newest"` support for Facebook (CREATION_TIME_DESCEND) |
+| **Wildcard browse** | Empty query or `"*"` → automatically uses `"e"` to browse all listings |
+| **Commercial detection** | `isCommercial` field in details — identifies "En stock" sellers vs personal sales |
+
+## Quick Start
+
+```bash
+git clone https://github.com/nizarajroud/secondhand-mcp.git
+cd secondhand-mcp
+npm install
+npm run build
+```
+
+### MCP Configuration (Kiro / Claude Desktop)
+
+```json
+{
+  "secondhand-mcp": {
+    "command": "node",
+    "args": ["/path/to/secondhand-mcp/dist/index.js"],
+    "env": {
+      "MARKETPLACES": "facebook"
+    }
+  }
+}
+```
+
+## Prompt Samples
+
+### Browse all recent listings in a location
+
+> "Montre-moi tous les articles publiés aujourd'hui à Longueuil sous 100$."
+
+### Search with all filters (price, radius, age, sort)
+
+> "Cherche une table à manger sur Facebook Marketplace à Montréal, dans un rayon de 15 miles, entre 50$ et 300$, publiée dans les 7 derniers jours, triée par plus récent."
+
+### Get publication time for each result
+
+> "Cherche 3 tables à Longueuil entre 20$ et 200$, triées par plus récent. Pour chaque résultat, récupère les détails et affiche le titre, prix, localisation, et depuis quand c'est publié."
+
+### Exclude commercial sellers (personal sales only)
+
+> "Cherche 5 écouteurs bluetooth à Montréal sous 50$. Pour chaque résultat, récupère les détails et affiche uniquement les annonces de particuliers (exclut les commerciaux). Montre le titre, prix, et depuis quand c'est publié."
 
 ## Supported Marketplaces
 
@@ -100,15 +149,17 @@ Search for items across marketplaces.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `query` | Yes | | Search terms |
+| `query` | No | | Search terms (empty or `"*"` browses all listings) |
 | `marketplace` | No | `facebook` | `facebook`, `ebay`, `depop`, `poshmark`, or `all` |
 | `location` | No | `san francisco` | City to search in (Facebook only) |
 | `maxPrice` | No | | Maximum price |
 | `minPrice` | No | | Minimum price |
+| `radius` | No | 20km | Search radius in miles (Facebook only) |
+| `daysSinceListed` | No | | Filter by listing age: 1, 7, or 30 days (Facebook only) |
 | `limit` | No | `20` | Max results |
 | `showSold` | No | `false` | Include sold items (Facebook only) |
 | `includeImages` | No | `false` | Include image URLs in output |
-| `sort` | No | `relevance` | Sort order (Depop, Poshmark): `relevance`, `newest`, `most_popular`, `price_low_to_high`, `price_high_to_low` |
+| `sort` | No | `relevance` | Sort order. Facebook: `relevance`, `newest`. Depop/Poshmark: `relevance`, `newest`, `most_popular`, `price_low_to_high`, `price_high_to_low` |
 | `condition` | No | | Item condition. eBay: `new`, `like_new`, `good`, `fair`. Depop: `new`, `like_new`, `excellent`, `good`, `fair`, `used`. Poshmark: `new` (NWT), `like_new` (NWOT), `good`, `fair` |
 | `category` | No | | Product category. Depop: `tops`, `bottoms`, `dresses`, `coats-jackets`, `footwear`, `accessories`, `bags`, `jewellery`, `activewear`, `swimwear`. Poshmark: `Jackets_&_Coats`, `Dresses`, `Shoes`, `Accessories`, etc. |
 | `brand` | No | | Brand filter (Poshmark only): e.g. `"Nike"`, `"Levi's"`, `"Gucci"` |
@@ -146,6 +197,10 @@ Get full details for a specific listing using an ID from search results.
 | Seller | Name | Username | Username | Username |
 | Delivery types | Yes | — | — | — |
 | Shipping | Yes/No | Service codes | Yes/No | Always included |
+| Publication date | Yes (`postedAt` + `postedAtRelative`) | — | — | — |
+| Commercial detection | Yes (`isCommercial`) | — | — | — |
+
+> **Note**: `postedAt`, `postedAtRelative`, and `isCommercial` are only available via `get_listing_details` (not in search results). The agent must call details for each listing to access these fields.
 
 ### `list_marketplaces`
 
