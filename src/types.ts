@@ -8,6 +8,7 @@ export interface Listing {
   price: string;
   priceNumeric?: number;
   currency?: string;
+  strikethroughPrice?: string;
   location?: string;
   description?: string;
   url: string;
@@ -16,6 +17,9 @@ export interface Listing {
   condition?: string;
   postedAt?: string;
   postedAtRelative?: string;
+  isSold?: boolean;
+  isLive?: boolean;
+  isPending?: boolean;
   marketplace: string;
   scrapedAt: string;
 }
@@ -55,6 +59,8 @@ export interface ListingDetails {
   location?: string;
   locationCoords?: { latitude: number; longitude: number };
   seller?: string;
+  sellerBusinessOnboarded?: boolean;
+  badges?: string[];
   deliveryTypes?: string[];
   isShippingOffered?: boolean;
   postedAt?: string;

@@ -165,13 +165,22 @@ export class FacebookMarketplace extends BaseMarketplace {
     const inventoryType = infoTarget?.listing_inventory_type;
     const isCommercial = inventoryType === 'EVERGREEN' || (infoTarget?.inventory_count != null && infoTarget.inventory_count !== 0);
 
+    const badges: string[] = [];
+    if (infoTarget?.commerce_badges_info?.badges?.length) {
+      for (const b of infoTarget.commerce_badges_info.badges) {
+        if (b?.title) badges.push(b.title);
+      }
+    }
+
     return {
       id: listingId,
       description: infoTarget?.redacted_description?.text ?? undefined,
       images,
       location: infoTarget?.location_text?.text ?? undefined,
-      locationCoords: infoTarget?.location ?? undefined,
+      locationCoords: infoTarget?.item_location ?? infoTarget?.location ?? undefined,
       seller: infoTarget?.marketplace_listing_seller?.name ?? undefined,
+      sellerBusinessOnboarded: infoTarget?.is_seller_business_onboarded ?? undefined,
+      badges: badges.length > 0 ? badges : undefined,
       deliveryTypes: infoTarget?.delivery_types ?? undefined,
       isShippingOffered: infoTarget?.is_shipping_offered ?? undefined,
       postedAt: creationTime ? new Date(creationTime * 1000).toISOString() : undefined,
@@ -268,12 +277,16 @@ export class FacebookMarketplace extends BaseMarketplace {
           price,
           priceNumeric: parsed?.numeric,
           currency: parsed?.currency || '$',
+          strikethroughPrice: listing.strikethrough_price?.formatted_amount || undefined,
           location: listing.location?.reverse_geocode?.city_page?.display_name,
           url: `https://www.facebook.com/marketplace/item/${listing.id}`,
           images: imageUri ? [imageUri] : undefined,
           seller: listing.marketplace_listing_seller?.name,
           postedAt: postedAtISO,
           postedAtRelative,
+          isSold: listing.is_sold || false,
+          isLive: listing.is_live ?? true,
+          isPending: listing.is_pending || false,
           marketplace: this.name,
           scrapedAt: new Date().toISOString(),
         });

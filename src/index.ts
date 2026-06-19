@@ -521,6 +521,18 @@ function formatListingDetails(details: ListingDetails): string {
     lines.push(`👤 Type : Particulier`);
   }
 
+  if (details.sellerBusinessOnboarded) {
+    lines.push(`💼 Vendeur business : Oui`);
+  }
+
+  if (details.badges && details.badges.length > 0) {
+    lines.push(`🏅 Badges : ${details.badges.join(', ')}`);
+  }
+
+  if (details.locationCoords) {
+    lines.push(`📌 Coords : ${details.locationCoords.latitude.toFixed(4)}, ${details.locationCoords.longitude.toFixed(4)}`);
+  }
+
   if (details.images.length > 0) {
     lines.push('');
     lines.push(`🖼️ Photos (${details.images.length}):`);
