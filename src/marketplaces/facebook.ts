@@ -43,7 +43,10 @@ export class FacebookMarketplace extends BaseMarketplace {
   private locationCache: Map<string, LocationCoordinates> = new Map();
 
   async search(params: SearchParams): Promise<SearchResult> {
-    const { query, location = 'san francisco', maxPrice, minPrice, limit = 24, radius, sort, daysSinceListed } = params;
+    const { query: rawQuery, location = 'san francisco', maxPrice, minPrice, limit = 24, radius, sort, daysSinceListed } = params;
+
+    // Facebook requires a non-empty query. Use "e" as a wildcard (matches virtually all French/English listings)
+    const query = (!rawQuery || rawQuery.trim() === '' || rawQuery.trim() === '*') ? 'e' : rawQuery;
 
     try {
       // Step 1: Resolve location to coordinates
